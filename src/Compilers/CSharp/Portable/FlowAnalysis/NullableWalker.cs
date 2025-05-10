@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -6019,13 +6019,18 @@ namespace Microsoft.CodeAnalysis.CSharp
                 _lastConditionalAccessSlot = slot;
             }
         }
+public override BoundNode? VisitConditionalAccess(BoundConditionalAccess node)
+{
+    if (node.AccessExpression is BoundBinaryOperator { OperatorKind: BinaryOperatorKind.Coalesce } coalesce)
+    {
+        VisitRvalue(coalesce.Left);
+        VisitRvalue(coalesce.Right);
+        return null;
+    }
 
-        public override BoundNode? VisitConditionalAccess(BoundConditionalAccess node)
-        {
-            VisitConditionalAccess(node, out _);
-            return null;
-        }
-
+    VisitConditionalAccess(node, out _);
+    return null;
+}
         protected override BoundNode? VisitConditionalOperatorCore(
             BoundExpression node,
             bool isRef,
