@@ -294,6 +294,38 @@ extends:
 
         - download: profilingInputs
           artifact: merged mibc
+      - powershell: |
+          $summaryFile = "$(Build.SourcesDirectory)\artifacts\SummaryReport.txt";
+          Add-Content -Path $summaryFile -Value "--- CI Summary Report ---";
+          Add-Content -Path $summaryFile -Value "";
+          
+          $logDir = "$(Build.SourcesDirectory)\artifacts\log\$(BuildConfiguration)";
+          if (Test-Path $logDir) {
+            Get-ChildItem -Path $logDir -Filter "*.log" -Recurse | ForEach-Object {
+              $content = Get-Content -Path $_.FullName | Select-String -Pattern "error:", "fail:", "failed", "critical", "warning:" -CaseSensitive -SimpleMatch -Context 0,5;
+              if ($content) {
+                Add-Content -Path $summaryFile -Value "Errors/Warnings found in $($_.Name) (first 5 context lines):";
+                $content | ForEach-Object { Add-Content -Path $summaryFile -Value ($_.ToString() | Out-String).Trim() };
+                Add-Content -Path $summaryFile -Value "";
+              }
+            }
+          }
+          
+          $testResultsDir = "$(Build.SourcesDirectory)\artifacts\TestResults\$(BuildConfiguration)";
+          if (Test-Path $testResultsDir) {
+            Get-ChildItem -Path $testResultsDir -Filter "*.xml" -Recurse | ForEach-Object {
+              $FailedTests = Select-String -Path $_.FullName -Pattern '<failure' -Quiet;
+              if ($FailedTests) {
+                Add-Content -Path $summaryFile -Value "Tests failed in $($_.Name). Please check the full test results artifact (Unit Tests).";
+                Add-Content -Path $summaryFile -Value "Path: $($_.FullName)";
+                Add-Content -Path $summaryFile -Value "";
+              }
+            }
+          }
+          
+          Write-Host "##vso[artifact.upload artifactname=CISummaryReport;containerfolder=CISummaryReport]$(Build.SourcesDirectory)\artifacts\SummaryReport.txt"
+        displayName: 'Generate & Publish CI Summary Report'
+        condition: succeededOrFailed()
           displayName: Download VSCode optimization inputs
 
         - task: PowerShell@2
