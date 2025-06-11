@@ -1,0 +1,60 @@
+name: Roslyn Fork CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_test:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.x' # A flexible version that should work for Roslyn's current state
+
+    - name: Restore dependencies
+      # Roslyn's restore might be different, but this is a standard starting point
+      run: dotnet restore
+
+    - name: Build Solution
+      # Output to a file for later summary
+      run: dotnet build --no-restore --configuration Release --verbosity normal > build_errors.log 2>&1
+      shell: pwsh
+      continue-on-error: true # Allow tests to run even if build fails
+
+    - name: Run Tests
+      # Output to a file for later summary
+      run: dotnet test --no-build --configuration Release --verbosity normal > test_failures.log 2>&1
+      shell: pwsh
+      continue-on-error: true # Allow post-test steps even if tests fail
+
+    - name: Display Build Failures (Summary)
+      if: failure() || success() # Always run to show status
+      run: |
+        Write-Host "--- Build Summary ---"
+        Get-Content build_errors.log | Select-String -Pattern "error|fail" -CaseSensitive | Out-String | Write-Host
+        Write-Host "---------------------"
+      shell: pwsh
+
+    - name: Display Test Failures (Summary)
+      if: failure() || success() # Always run to show status
+      run: |
+        Write-Host "--- Test Summary ---"
+        Get-Content test_failures.log | Select-String -Pattern "Fail" | Out-String | Write-Host
+        Write-Host "--------------------"
+      shell: pwsh
+
+    - name: Upload Build and Test Logs as Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ci-summary-logs
+        path: |
+          build_errors.log
+          test_failures.log
+        retention-days: 1
