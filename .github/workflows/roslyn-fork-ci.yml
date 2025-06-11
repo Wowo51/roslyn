@@ -18,7 +18,8 @@ jobs:
       with:
         dotnet-version: '8.x' # A flexible version that should work for Roslyn's current state
 
-    - name: Restore dependencies
+run: |
+        dotnet build --no-restore --configuration Release --verbosity normal *>&1 | Set-Content -Path build_errors.log
       # Roslyn's restore might be different, but this is a standard starting point
       run: dotnet restore
 
@@ -27,7 +28,8 @@ jobs:
       run: dotnet build --no-restore --configuration Release --verbosity normal > build_errors.log 2>&1
       shell: pwsh
       continue-on-error: true # Allow tests to run even if build fails
-
+run: |
+        dotnet test --no-build --configuration Release --verbosity normal *>&1 | Set-Content -Path test_failures.log
     - name: Run Tests
       # Output to a file for later summary
       run: dotnet test --no-build --configuration Release --verbosity normal > test_failures.log 2>&1
