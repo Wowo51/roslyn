@@ -14,21 +14,18 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.x' # A flexible version that should work for Roslyn's current state
-
+    - name: Restore NuGet packages
+      run: dotnet restore
+      shell: pwsh # Explicitly set for PowerShell
 run: |
         dotnet build --no-restore --configuration Release --verbosity normal *>&1 | Set-Content -Path build_errors.log
       # Roslyn's restore might be different, but this is a standard starting point
-      run: dotnet restore
+      run: dotnet build --no-restore --configuration Release --verbosity normal *>&1 | Set-Content -Path build_errors.log
 
     - name: Build Solution
-      # Output to a file for later summary
-      run: dotnet build --no-restore --configuration Release --verbosity normal > build_errors.log 2>&1
       shell: pwsh
       continue-on-error: true # Allow tests to run even if build fails
-run: |
+      run: dotnet test --no-build --configuration Release --verbosity normal *>&1 | Set-Content -Path test_failures.log
         dotnet test --no-build --configuration Release --verbosity normal *>&1 | Set-Content -Path test_failures.log
     - name: Run Tests
       # Output to a file for later summary
